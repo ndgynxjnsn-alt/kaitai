@@ -10,13 +10,13 @@ export function hexToArrayBuffer(hex: string): ArrayBuffer {
   if (cleaned.length === 0) {
     throw new Error("No hex data found in input");
   }
-  if (cleaned.length % 2 !== 0) {
-    throw new Error("Hex string has odd length — each byte needs two hex digits");
-  }
 
-  const bytes = new Uint8Array(cleaned.length / 2);
-  for (let i = 0; i < cleaned.length; i += 2) {
-    bytes[i / 2] = parseInt(cleaned.substring(i, i + 2), 16);
+  // Pad odd-length input with a trailing 0 so every pair forms a byte
+  const padded = cleaned.length % 2 !== 0 ? cleaned + "0" : cleaned;
+
+  const bytes = new Uint8Array(padded.length / 2);
+  for (let i = 0; i < padded.length; i += 2) {
+    bytes[i / 2] = parseInt(padded.substring(i, i + 2), 16);
   }
   return bytes.buffer;
 }

@@ -1,12 +1,12 @@
-import { useState, useCallback, useRef } from "react";
-import { loadKsyFiles, addKsyFile, removeKsyFile } from "./lib/storage.ts";
-import type { KsyFile } from "./lib/storage.ts";
-import { hexToArrayBuffer } from "./lib/hex.ts";
-import { compileAndParse } from "./lib/kaitai.ts";
-import type { ParseResult } from "./lib/kaitai.ts";
-import TreeView from "./TreeView.tsx";
-import HexInput from "./HexInput.tsx";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
+import HexInput from "./HexInput.tsx";
+import { hexToArrayBuffer } from "./lib/hex.ts";
+import type { ParseResult } from "./lib/kaitai.ts";
+import { compileAndParse } from "./lib/kaitai.ts";
+import type { KsyFile } from "./lib/storage.ts";
+import { addKsyFile, loadKsyFiles, removeKsyFile } from "./lib/storage.ts";
+import TreeView from "./TreeView.tsx";
 
 function App() {
   const [ksyFiles, setKsyFiles] = useState<KsyFile[]>(loadKsyFiles);
@@ -15,7 +15,6 @@ function App() {
   );
   const [hexInput, setHexInput] = useState("");
   const [result, setResult] = useState<ParseResult | null>(null);
-  const [parsing, setParsing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddKsy = useCallback(() => {
@@ -72,7 +71,6 @@ function App() {
       return;
     }
 
-    setParsing(true);
     setResult(null);
     try {
       const res = await compileAndParse(ksy.content, buffer);
@@ -82,10 +80,17 @@ function App() {
         success: false,
         error: err instanceof Error ? err.message : String(err),
       });
-    } finally {
-      setParsing(false);
     }
   }, [ksyFiles, selectedKsy, hexInput]);
+
+  // Auto-parse whenever hex input or selected KSY changes
+  useEffect(() => {
+    if (selectedKsy && hexInput.trim()) {
+      handleParse();
+    } else {
+      setResult(null);
+    }
+  }, [hexInput, selectedKsy, handleParse]);
 
   return (
     <div className="app">
@@ -139,13 +144,6 @@ function App() {
           <section className="input-section">
             <label htmlFor="hex-input">Hex Buffer</label>
             <HexInput value={hexInput} onChange={setHexInput} />
-            <button
-              className="btn btn-primary"
-              onClick={handleParse}
-              disabled={parsing || !selectedKsy || !hexInput.trim()}
-            >
-              {parsing ? "Parsing..." : "Parse"}
-            </button>
           </section>
 
           <section className="result-section">
