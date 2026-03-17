@@ -5,6 +5,7 @@ import { hexToArrayBuffer } from "./lib/hex.ts";
 import { compileAndParse } from "./lib/kaitai.ts";
 import type { ParseResult } from "./lib/kaitai.ts";
 import TreeView from "./TreeView.tsx";
+import HexInput from "./HexInput.tsx";
 import "./App.css";
 
 function App() {
@@ -137,14 +138,7 @@ function App() {
         <main>
           <section className="input-section">
             <label htmlFor="hex-input">Hex Buffer</label>
-            <textarea
-              id="hex-input"
-              className="hex-input"
-              placeholder="Paste hex bytes, e.g.: 89 50 4E 47 0D 0A 1A 0A ..."
-              value={hexInput}
-              onChange={(e) => setHexInput(e.target.value)}
-              spellCheck={false}
-            />
+            <HexInput value={hexInput} onChange={setHexInput} />
             <button
               className="btn btn-primary"
               onClick={handleParse}

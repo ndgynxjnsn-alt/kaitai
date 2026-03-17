@@ -1,20 +1,43 @@
 import { useState, useCallback } from "react";
 import type { TreeNode } from "./lib/kaitai.ts";
+import { useHighlightStore } from "./lib/highlightStore.ts";
+
+function rangesOverlap(
+  a: { start: number; end: number } | undefined,
+  b: { start: number; end: number } | null
+): boolean {
+  if (!a || !b) return false;
+  return a.start < b.end && b.start < a.end;
+}
 
 function TreeNodeRow({ node, depth }: { node: TreeNode; depth: number }) {
   const [open, setOpen] = useState(depth < 2);
   const hasChildren = !!node.children?.length;
+  const setHoveredRange = useHighlightStore((s) => s.setHoveredRange);
+  const selectedRange = useHighlightStore((s) => s.selectedRange);
+
+  const isHighlighted = rangesOverlap(node.range, selectedRange);
 
   const toggle = useCallback(() => {
     if (hasChildren) setOpen((o) => !o);
   }, [hasChildren]);
 
+  const handleMouseEnter = useCallback(() => {
+    if (node.range) setHoveredRange(node.range);
+  }, [node.range, setHoveredRange]);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredRange(null);
+  }, [setHoveredRange]);
+
   return (
     <li className="tree-node">
       <div
-        className={`tree-row ${hasChildren ? "expandable" : ""}`}
+        className={`tree-row ${hasChildren ? "expandable" : ""} ${isHighlighted ? "tree-row-highlighted" : ""}`}
         style={{ paddingLeft: depth * 16 + 4 }}
         onClick={toggle}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {hasChildren && (
           <span className="tree-toggle">{open ? "\u25BE" : "\u25B8"}</span>

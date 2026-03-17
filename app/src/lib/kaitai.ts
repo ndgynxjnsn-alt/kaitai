@@ -5,9 +5,16 @@ import { KaitaiStream } from "kaitai-struct";
 /** Node types in the parsed tree */
 export type TreeNodeType = "object" | "array" | "bytes" | "primitive";
 
+export interface ByteRange {
+  start: number;
+  end: number; // exclusive
+}
+
 export interface TreeNode {
   name: string;
   type: TreeNodeType;
+  /** Byte range in the original buffer */
+  range?: ByteRange;
   /** For objects: the kaitai class name */
   className?: string;
   /** For primitives: the raw value */
@@ -57,12 +64,18 @@ export async function compileAndParse(
     },
   };
 
-  const compiledFiles = await KaitaiStructCompiler.compile(
-    "javascript",
-    ksyObject,
-    importer,
-    false
-  );
+  let compiledFiles: Record<string, string>;
+  try {
+    compiledFiles = await KaitaiStructCompiler.compile(
+      "javascript",
+      ksyObject,
+      importer,
+      true
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { success: false, error: `Compilation failed: ${msg}` };
+  }
 
   // 3. Join all generated source files
   const jsCode = Object.values(compiledFiles).join("\n");
@@ -86,8 +99,13 @@ export async function compileAndParse(
 
   // The main class is exported under its PascalCase name (e.g. SimplePacket.SimplePacket)
   const mainClassName = Object.keys(classes)[0];
+  type KaitaiParser = Record<string, unknown> & { _read(): void };
   const MainClass = mainClassName
-    ? (classes[mainClassName] as new (stream: KaitaiStream) => Record<string, unknown>)
+    ? (classes[mainClassName] as new (
+        stream: KaitaiStream,
+        parent: unknown,
+        root: unknown
+      ) => KaitaiParser)
     : null;
 
   if (!MainClass) {
@@ -95,15 +113,43 @@ export async function compileAndParse(
   }
 
   // 5. Instantiate and parse (_read() is called by the constructor)
-  const stream = new KaitaiStream(buffer, 0);
-  const parsed = new MainClass(stream);
+  try {
+    const stream = new KaitaiStream(buffer, 0);
+    const parsed = new MainClass(stream, null, null);
+    parsed._read();
 
-  // 6. Build the tree
-  const tree = buildTreeNode(rootClassName ?? "root", parsed);
-  return { success: true, tree };
+    // 6. Build the tree
+    const tree = buildTreeNode(
+      rootClassName ?? "root",
+      parsed,
+      (parsed as Record<string, unknown>)._debug as Record<string, DebugInfo> | undefined
+    );
+    return { success: true, tree };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { success: false, error: `Parse error: ${msg}` };
+  }
 }
 
-function buildTreeNode(name: string, obj: unknown, depth = 0): TreeNode {
+interface DebugInfo {
+  start?: number;
+  end?: number;
+  ioOffset?: number;
+  arr?: DebugInfo[];
+}
+
+function getRange(debug: DebugInfo | undefined): ByteRange | undefined {
+  if (!debug || typeof debug.start !== "number" || typeof debug.end !== "number") return undefined;
+  const offset = debug.ioOffset ?? 0;
+  return { start: offset + debug.start, end: offset + debug.end };
+}
+
+function buildTreeNode(
+  name: string,
+  obj: unknown,
+  debug: Record<string, DebugInfo> | undefined,
+  depth = 0
+): TreeNode {
   if (depth > 30) {
     return { name, type: "primitive", value: "[max depth]" };
   }
@@ -128,9 +174,19 @@ function buildTreeNode(name: string, obj: unknown, depth = 0): TreeNode {
 
   // Arrays
   if (Array.isArray(obj)) {
-    const children = obj.map((item, i) =>
-      buildTreeNode(String(i), item, depth + 1)
-    );
+    const children = obj.map((item, i) => {
+      const itemDebug = debug as unknown as DebugInfo;
+      const childDebugInfo = itemDebug?.arr?.[i];
+      const childObj = item as Record<string, unknown>;
+      const childDebug = childObj && typeof childObj === "object" && !Array.isArray(childObj)
+        ? (childObj as Record<string, unknown>)._debug as Record<string, DebugInfo> | undefined
+        : undefined;
+      const node = buildTreeNode(String(i), item, childDebug, depth + 1);
+      if (childDebugInfo) {
+        node.range = getRange(childDebugInfo);
+      }
+      return node;
+    });
     return { name, type: "array", arrayLength: obj.length, children };
   }
 
@@ -138,11 +194,32 @@ function buildTreeNode(name: string, obj: unknown, depth = 0): TreeNode {
   if (typeof obj === "object") {
     const record = obj as Record<string, unknown>;
     const className = record.constructor?.name;
+    const objDebug = record._debug as Record<string, DebugInfo> | undefined;
 
     const children: TreeNode[] = [];
     for (const key of Object.keys(record)) {
       if (key.startsWith("_")) continue;
-      children.push(buildTreeNode(key, record[key], depth + 1));
+      const fieldDebug = objDebug?.[key];
+      const childVal = record[key];
+      const childObj = childVal as Record<string, unknown>;
+      const childObjDebug = childVal && typeof childVal === "object" && !Array.isArray(childVal)
+        ? (childObj._debug as Record<string, DebugInfo> | undefined)
+        : undefined;
+      const node = buildTreeNode(key, childVal, childObjDebug, depth + 1);
+      if (fieldDebug) {
+        node.range = getRange(fieldDebug);
+      }
+      children.push(node);
+    }
+
+    // Compute range for the object itself from children
+    let minStart = Infinity;
+    let maxEnd = -Infinity;
+    for (const child of children) {
+      if (child.range) {
+        minStart = Math.min(minStart, child.range.start);
+        maxEnd = Math.max(maxEnd, child.range.end);
+      }
     }
 
     return {
@@ -150,6 +227,7 @@ function buildTreeNode(name: string, obj: unknown, depth = 0): TreeNode {
       type: "object",
       className: className && className !== "Object" ? className : undefined,
       children,
+      range: minStart < Infinity ? { start: minStart, end: maxEnd } : undefined,
     };
   }
 

@@ -146,10 +146,36 @@ main {
   color: var(--text-muted);
 }
 
-.hex-input {
-  background: var(--surface);
+/* Hex input wrapper with mirror overlay */
+.hex-input-wrapper {
+  position: relative;
+  min-height: 120px;
+  border-radius: 6px;
   border: 1px solid var(--border);
+  transition: border-color 0.15s;
+}
+
+.hex-input-wrapper:focus-within {
+  border-color: var(--accent);
+}
+
+.hex-mirror {
+  position: absolute;
+  inset: 0;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.hex-input {
   font-family: var(--font-mono);
   font-size: 14px;
   padding: 12px;
@@ -157,15 +183,32 @@ main {
   resize: vertical;
   min-height: 120px;
   outline: none;
-  transition: border-color 0.15s;
+  width: 100%;
+  line-height: 1.5;
+  word-break: break-all;
 }
 
-.hex-input:focus {
-  border-color: var(--accent);
+.hex-input-transparent {
+  position: relative;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+  border: none;
+}
+
+.hex-input-transparent::selection {
+  background: rgba(233, 69, 96, 0.3);
+  color: transparent;
 }
 
 .hex-input::placeholder {
   color: var(--text-muted);
+}
+
+/* CSS Highlight API for hex byte highlighting */
+::highlight(hex-highlight) {
+  background-color: rgba(233, 69, 96, 0.35);
+  color: #fff;
 }
 
 /* Buttons */
@@ -277,6 +320,12 @@ main {
 
 .tree-row:hover {
   background: var(--surface-2);
+}
+
+.tree-row-highlighted {
+  background: rgba(233, 69, 96, 0.15) !important;
+  outline: 1px solid rgba(233, 69, 96, 0.4);
+  outline-offset: -1px;
 }
 
 .tree-toggle {

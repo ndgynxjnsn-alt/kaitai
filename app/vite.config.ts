@@ -15,4 +15,7 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 4000, // kaitai-struct-compiler is large (~3.6MB)
   },
+  test: {
+    environment: 'node',
+  },
 })
