@@ -1,110 +1,122 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useMemo, useCallback, useRef } from "react";
 import { useHighlightStore } from "./lib/highlightStore.ts";
+import type { ByteRange } from "./lib/highlightStore.ts";
 
-/**
- * Read-only hex viewer with CSS Highlight API support.
- * Displays a hex string with bidirectional highlighting to the tree view.
- */
+const BYTES_PER_LINE = 16;
+
+/** Parse a hex string (e.g. "ca fe 00 04") into byte values. */
+function parseHexBytes(hex: string): number[] {
+  const cleaned = hex.replace(/0x/gi, "").replace(/[^0-9a-fA-F]/g, "");
+  const bytes: number[] = [];
+  for (let i = 0; i + 1 < cleaned.length; i += 2) {
+    bytes.push(parseInt(cleaned.substring(i, i + 2), 16));
+  }
+  return bytes;
+}
+
+function addrHex(offset: number): string {
+  return offset.toString(16).padStart(8, "0");
+}
+
+function byteHex(b: number): string {
+  return b.toString(16).padStart(2, "0");
+}
+
+function isInRange(byteIdx: number, range: ByteRange | null): boolean {
+  if (!range) return false;
+  return byteIdx >= range.start && byteIdx < range.end;
+}
+
 export default function HexViewer({ hex }: { hex: string }) {
-  const mirrorRef = useRef<HTMLDivElement>(null);
   const hoveredRange = useHighlightStore((s) => s.hoveredRange);
   const setSelectedRange = useHighlightStore((s) => s.setSelectedRange);
 
-  // Build byte-to-char map for the hex string
-  const byteCharMap = useRef<{ start: number; end: number }[]>([]);
+  const bytes = useMemo(() => parseHexBytes(hex), [hex]);
 
-  useEffect(() => {
-    const map: { start: number; end: number }[] = [];
-    let i = 0;
-    const s = hex;
-    while (i < s.length) {
-      if (/[\s:,]/.test(s[i])) {
-        i++;
-        continue;
-      }
-      if (s[i] === "0" && s[i + 1]?.toLowerCase() === "x") {
-        i += 2;
-        continue;
-      }
-      if (
-        i + 1 < s.length &&
-        /[0-9a-fA-F]/.test(s[i]) &&
-        /[0-9a-fA-F]/.test(s[i + 1])
-      ) {
-        map.push({ start: i, end: i + 2 });
-        i += 2;
-      } else {
-        i++;
-      }
-    }
-    byteCharMap.current = map;
-  }, [hex]);
+  const mouseDownByte = useRef<number | null>(null);
 
-  // Apply CSS Highlight API
-  useEffect(() => {
-    if (!CSS.highlights || !mirrorRef.current) return;
-    CSS.highlights.delete("hex-highlight");
-    if (!hoveredRange || byteCharMap.current.length === 0) return;
+  const updateSelection = useCallback(
+    (anchor: number, current: number) => {
+      const start = Math.min(anchor, current);
+      const end = Math.max(anchor, current) + 1;
+      setSelectedRange({ start, end });
+    },
+    [setSelectedRange]
+  );
 
-    const textNode = mirrorRef.current.firstChild;
-    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
+  const handleCellMouseDown = useCallback(
+    (byteIdx: number) => (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      mouseDownByte.current = byteIdx;
+      setSelectedRange({ start: byteIdx, end: byteIdx + 1 });
 
-    const ranges: Range[] = [];
-    for (let b = hoveredRange.start; b < hoveredRange.end; b++) {
-      const charRange = byteCharMap.current[b];
-      if (!charRange) continue;
-      let end = charRange.end;
-      if (b < hoveredRange.end - 1) {
-        const next = byteCharMap.current[b + 1];
-        if (next) end = next.start;
-      }
-      const r = new Range();
-      r.setStart(textNode, charRange.start);
-      r.setEnd(textNode, Math.min(end, hex.length));
-      ranges.push(r);
-    }
+      const handleMouseMove = (me: MouseEvent) => {
+        const target = me.target as HTMLElement;
+        const offset = target.dataset?.offset;
+        if (offset != null && mouseDownByte.current != null) {
+          updateSelection(mouseDownByte.current, parseInt(offset, 10));
+        }
+      };
 
-    if (ranges.length > 0) {
-      const merged = new Range();
-      merged.setStart(ranges[0].startContainer, ranges[0].startOffset);
-      const last = ranges[ranges.length - 1];
-      merged.setEnd(last.endContainer, last.endOffset);
-      CSS.highlights.set("hex-highlight", new Highlight(merged));
-    }
-  }, [hoveredRange, hex]);
+      const handleMouseUp = () => {
+        mouseDownByte.current = null;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
 
-  // Handle text selection → byte range
-  const handleMouseUp = useCallback(() => {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) {
-      setSelectedRange(null);
-      return;
-    }
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [setSelectedRange, updateSelection]
+  );
 
-    const range = sel.getRangeAt(0);
-    const startOffset = range.startOffset;
-    const endOffset = range.endOffset;
-
-    let minByte = Infinity;
-    let maxByte = -Infinity;
-    byteCharMap.current.forEach((charRange, byteIdx) => {
-      if (charRange.end > startOffset && charRange.start < endOffset) {
-        minByte = Math.min(minByte, byteIdx);
-        maxByte = Math.max(maxByte, byteIdx);
-      }
-    });
-
-    if (minByte <= maxByte) {
-      setSelectedRange({ start: minByte, end: maxByte + 1 });
-    } else {
-      setSelectedRange(null);
-    }
-  }, [setSelectedRange]);
+  const rows: number[][] = [];
+  for (let i = 0; i < bytes.length; i += BYTES_PER_LINE) {
+    rows.push(bytes.slice(i, i + BYTES_PER_LINE));
+  }
 
   return (
-    <div className="hex-viewer" onMouseUp={handleMouseUp}>
-      <div ref={mirrorRef} className="hex-viewer-content">
-        {hex}
+    <div className="hex-viewer">
+      <div className="hv-header">
+        <span className="hv-addr">&nbsp;</span>
+        <span className="hv-hex-header">
+          {Array.from({ length: BYTES_PER_LINE }, (_, i) => (
+            <span key={i} className={`hv-col-hdr${i === 8 ? " hv-col-gap" : ""}`}>
+              {i.toString(16).toUpperCase()}
+            </span>
+          ))}
+        </span>
+      </div>
+      <div className="hv-body">
+        {rows.map((row, rowIdx) => {
+          const rowOffset = rowIdx * BYTES_PER_LINE;
+          return (
+            <div className="hv-row" key={rowIdx}>
+              <span className="hv-addr">{addrHex(rowOffset)}</span>
+              <span className="hv-hex">
+                {row.map((b, col) => {
+                  const byteIdx = rowOffset + col;
+                  const highlighted = isInRange(byteIdx, hoveredRange);
+                  const cls =
+                    "hv-cell" +
+                    (col === 8 ? " hv-col-gap" : "") +
+                    (highlighted ? " hv-highlighted" : "");
+                  return (
+                    <span
+                      key={col}
+                      className={cls}
+                      data-offset={byteIdx}
+                      onMouseDown={handleCellMouseDown(byteIdx)}
+                    >
+                      {byteHex(b)}
+                    </span>
+                  );
+                })}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

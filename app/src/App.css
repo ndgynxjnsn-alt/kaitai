@@ -5,15 +5,18 @@
 }
 
 :root {
-  --bg: #1a1a2e;
-  --surface: #16213e;
-  --surface-2: #0f3460;
-  --accent: #e94560;
-  --text: #eee;
-  --text-muted: #999;
-  --border: #2a2a4a;
-  --success: #4caf50;
-  --error: #e94560;
+  /* Aligned with VS Code vs-dark theme */
+  --bg: #1e1e1e;
+  --surface: #252526;
+  --surface-2: #2d2d30;
+  --accent: #007acc;
+  --accent-bright: #1a8fe0;
+  --text: #d4d4d4;
+  --text-muted: #858585;
+  --border: #3c3c3c;
+  --success: #4ec9b0;
+  --error: #f44747;
+  --highlight: rgba(0, 122, 204, 0.3);
   --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
 }
 
@@ -235,71 +238,6 @@ main {
   color: var(--text-muted);
 }
 
-/* Hex input wrapper with mirror overlay */
-.hex-input-wrapper {
-  position: relative;
-  min-height: 120px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  transition: border-color 0.15s;
-}
-
-.hex-input-wrapper:focus-within {
-  border-color: var(--accent);
-}
-
-.hex-mirror {
-  position: absolute;
-  inset: 0;
-  padding: 12px;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text);
-  white-space: pre-wrap;
-  word-break: break-all;
-  overflow: hidden;
-  pointer-events: none;
-  border-radius: 6px;
-  background: var(--surface);
-}
-
-.hex-input {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  padding: 12px;
-  border-radius: 6px;
-  resize: vertical;
-  min-height: 120px;
-  outline: none;
-  width: 100%;
-  line-height: 1.5;
-  word-break: break-all;
-}
-
-.hex-input-transparent {
-  position: relative;
-  background: transparent;
-  color: transparent;
-  caret-color: var(--text);
-  border: none;
-}
-
-.hex-input-transparent::selection {
-  background: rgba(233, 69, 96, 0.3);
-  color: transparent;
-}
-
-.hex-input::placeholder {
-  color: var(--text-muted);
-}
-
-/* CSS Highlight API for hex byte highlighting */
-::highlight(hex-highlight) {
-  background-color: rgba(233, 69, 96, 0.35);
-  color: #fff;
-}
-
 /* Buttons */
 .btn {
   background: var(--surface-2);
@@ -314,7 +252,7 @@ main {
 }
 
 .btn:hover {
-  background: var(--accent);
+  background: #3e3e42;
 }
 
 .btn-sm {
@@ -325,12 +263,13 @@ main {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
+  color: #fff;
   align-self: flex-start;
   padding: 8px 24px;
 }
 
 .btn-primary:hover {
-  opacity: 0.85;
+  background: var(--accent-bright);
 }
 
 .btn-primary:disabled {
@@ -344,7 +283,7 @@ main {
 }
 
 .error {
-  background: rgba(233, 69, 96, 0.1);
+  background: rgba(244, 71, 71, 0.1);
   border: 1px solid var(--error);
   border-radius: 6px;
   padding: 12px 16px;
@@ -412,8 +351,8 @@ main {
 }
 
 .tree-row-highlighted {
-  background: rgba(233, 69, 96, 0.15) !important;
-  outline: 1px solid rgba(233, 69, 96, 0.4);
+  background: var(--highlight) !important;
+  outline: 1px solid rgba(0, 122, 204, 0.5);
   outline-offset: -1px;
 }
 
@@ -432,11 +371,11 @@ main {
 }
 
 .node-name {
-  color: #9090ff;
+  color: #9cdcfe;
 }
 
 .node-class {
-  color: #7fff7f;
+  color: var(--success);
 }
 
 .node-meta {
@@ -444,12 +383,12 @@ main {
 }
 
 .node-value {
-  color: #fff;
+  color: var(--text);
   font-weight: 600;
 }
 
 .node-int {
-  color: #888;
+  color: #b5cea8;
 }
 
 .node-string {
@@ -471,25 +410,91 @@ main {
   font-style: italic;
 }
 
-/* Hex viewer (read-only) */
+/* Hex viewer (read-only, 16-column grid) */
 .hex-viewer {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 12px;
-  max-height: 200px;
+  max-height: 300px;
   overflow: auto;
-  user-select: text;
-  cursor: text;
+  user-select: none;
+  cursor: default;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-ligatures: none;
 }
 
-.hex-viewer-content {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text);
-  white-space: pre-wrap;
-  word-break: break-all;
+.hv-header {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 11px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+.hv-hex-header {
+  display: inline-flex;
+}
+
+.hv-col-hdr {
+  display: inline-block;
+  width: 24px;
+  text-align: center;
+}
+
+.hv-body {
+  padding: 2px 0;
+}
+
+.hv-row {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 12px;
+}
+
+.hv-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.hv-addr {
+  display: inline-block;
+  width: 72px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.hv-hex {
+  display: inline-flex;
+}
+
+.hv-cell {
+  display: inline-block;
+  width: 24px;
+  text-align: center;
+  padding: 1px 0;
+  border-radius: 2px;
+  transition: background 0.08s;
+}
+
+.hv-cell:hover {
+  background: var(--surface-2);
+}
+
+.hv-col-gap {
+  margin-left: 8px;
+}
+
+.hv-highlighted {
+  background: var(--highlight) !important;
+  color: #fff !important;
 }
 
 .hex-empty {
@@ -627,7 +632,7 @@ main {
 
 .modal-upload-zone:hover {
   border-color: var(--accent);
-  background: rgba(233, 69, 96, 0.05);
+  background: rgba(0, 122, 204, 0.05);
 }
 
 .modal-upload-hint {
@@ -651,7 +656,7 @@ main {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(15, 52, 96, 0.85);
+  background: rgba(30, 30, 30, 0.88);
   display: flex;
   align-items: center;
   justify-content: center;
