@@ -19,8 +19,8 @@
                 },
                 "background": {
                     "activeOnStart": true,
-                    "beginsPattern": "VITE v\\d+\\.\\d+\\.\\d+ ready in",
-                    "endsPattern": "^(?!.*)"
+                    "beginsPattern": "vite",
+                    "endsPattern": "ready in"
                 }
             }
         }

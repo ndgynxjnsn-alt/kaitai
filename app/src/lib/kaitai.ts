@@ -45,9 +45,16 @@ export async function compileAndParse(
   buffer: ArrayBuffer
 ): Promise<ParseResult> {
   // 1. Parse the YAML
-  const ksyObject = yaml.load(ksyYaml) as Record<string, unknown> | null;
-  if (!ksyObject || typeof ksyObject !== "object") {
-    return { success: false, error: "Invalid KSY: not a valid YAML object" };
+  let ksyObject: Record<string, unknown>;
+  try {
+    const parsed = yaml.load(ksyYaml);
+    if (!parsed || typeof parsed !== "object") {
+      return { success: false, error: "Invalid KSY: not a valid YAML object" };
+    }
+    ksyObject = parsed as Record<string, unknown>;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { success: false, error: `Invalid KSY: ${msg}` };
   }
 
   const rootClassName =
