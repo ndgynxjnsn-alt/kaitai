@@ -1,74 +1,33 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
+import FileTree from "./FileTree.tsx";
 import HexInput from "./HexInput.tsx";
 import KsyEditor from "./KsyEditor.tsx";
 import { hexToArrayBuffer } from "./lib/hex.ts";
+import { useFsStore } from "./lib/fsStore.ts";
 import type { ParseResult } from "./lib/kaitai.ts";
 import { compileAndParse } from "./lib/kaitai.ts";
-import type { KsyFile } from "./lib/storage.ts";
-import { addKsyFile, loadKsyFiles, removeKsyFile } from "./lib/storage.ts";
 import TreeView from "./TreeView.tsx";
 
 function App() {
-  const [ksyFiles, setKsyFiles] = useState<KsyFile[]>(loadKsyFiles);
-  const [selectedKsy, setSelectedKsy] = useState<string>(
-    () => loadKsyFiles()[0]?.name ?? ""
-  );
+  const entries = useFsStore((s) => s.entries);
+  const openFile = useFsStore((s) => s.openFile);
+  const writeFile = useFsStore((s) => s.writeFile);
+
+  const openFileContent = openFile ? (entries[openFile] ?? "") : "";
+
   const [hexInput, setHexInput] = useState("");
   const [result, setResult] = useState<ParseResult | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAddKsy = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (!files) return;
-      Array.from(files).forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const content = reader.result as string;
-          const updated = addKsyFile({ name: file.name, content });
-          setKsyFiles(updated);
-          if (!selectedKsy || updated.length === 1) {
-            setSelectedKsy(file.name);
-          }
-        };
-        reader.readAsText(file);
-      });
-      e.target.value = "";
-    },
-    [selectedKsy]
-  );
-
-  const handleRemoveKsy = useCallback(
-    (name: string) => {
-      const updated = removeKsyFile(name);
-      setKsyFiles(updated);
-      if (selectedKsy === name) {
-        setSelectedKsy(updated[0]?.name ?? "");
-      }
-    },
-    [selectedKsy]
-  );
-
-  const selectedKsyContent =
-    ksyFiles.find((f) => f.name === selectedKsy)?.content ?? "";
-
-  const handleKsyContentChange = useCallback(
+  const handleEditorChange = useCallback(
     (content: string) => {
-      if (!selectedKsy) return;
-      const updated = addKsyFile({ name: selectedKsy, content });
-      setKsyFiles(updated);
+      if (openFile) writeFile(openFile, content);
     },
-    [selectedKsy]
+    [openFile, writeFile]
   );
 
   const handleParse = useCallback(async () => {
-    const ksy = ksyFiles.find((f) => f.name === selectedKsy);
-    if (!ksy) {
+    if (!openFile || !openFileContent) {
       setResult({ success: false, error: "No KSY file selected" });
       return;
     }
@@ -86,7 +45,7 @@ function App() {
 
     setResult(null);
     try {
-      const res = await compileAndParse(ksy.content, buffer);
+      const res = await compileAndParse(openFileContent, buffer);
       setResult(res);
     } catch (err) {
       setResult({
@@ -94,16 +53,16 @@ function App() {
         error: err instanceof Error ? err.message : String(err),
       });
     }
-  }, [ksyFiles, selectedKsy, hexInput]);
+  }, [openFile, openFileContent, hexInput]);
 
-  // Auto-parse whenever hex input or selected KSY changes
+  // Auto-parse whenever hex input or open file content changes
   useEffect(() => {
-    if (selectedKsy && hexInput.trim()) {
+    if (openFile && openFileContent && hexInput.trim()) {
       handleParse();
     } else {
       setResult(null);
     }
-  }, [hexInput, selectedKsy, handleParse]);
+  }, [hexInput, openFile, openFileContent, handleParse]);
 
   return (
     <div className="app">
@@ -112,56 +71,17 @@ function App() {
       </header>
 
       <div className="layout">
-        <aside className="sidebar">
-          <div className="sidebar-header">
-            <h2>KSY Files</h2>
-            <button className="btn btn-sm" onClick={handleAddKsy}>
-              + Add
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".ksy,.yaml,.yml"
-              multiple
-              hidden
-              onChange={handleFileChange}
-            />
-          </div>
-          <ul className="ksy-list">
-            {ksyFiles.length === 0 && (
-              <li className="empty">No .ksy files loaded</li>
-            )}
-            {ksyFiles.map((f) => (
-              <li
-                key={f.name}
-                className={f.name === selectedKsy ? "selected" : ""}
-                onClick={() => setSelectedKsy(f.name)}
-              >
-                <span className="ksy-name">{f.name}</span>
-                <button
-                  className="btn-remove"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveKsy(f.name);
-                  }}
-                  title="Remove"
-                >
-                  &times;
-                </button>
-              </li>
-            ))}
-          </ul>
-        </aside>
+        <FileTree />
 
         <section className="editor-panel">
-          {selectedKsy ? (
+          {openFile ? (
             <KsyEditor
-              value={selectedKsyContent}
-              onChange={handleKsyContentChange}
+              value={openFileContent}
+              onChange={handleEditorChange}
             />
           ) : (
             <div className="editor-placeholder">
-              Select or add a .ksy file to edit
+              Select or upload a .ksy file to edit
             </div>
           )}
         </section>

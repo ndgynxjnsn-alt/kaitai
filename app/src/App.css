@@ -72,55 +72,111 @@ header h1 {
   color: var(--text-muted);
 }
 
-.ksy-list {
+.sidebar-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* File tree */
+.ft-root {
   list-style: none;
   flex: 1;
   overflow-y: auto;
 }
 
-.ksy-list li {
-  padding: 10px 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.15s;
+.ft-children {
+  list-style: none;
 }
 
-.ksy-list li:hover {
+.ft-row {
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.ft-row:hover {
   background: var(--surface-2);
 }
 
-.ksy-list li.selected {
+.ft-row:hover .ft-delete {
+  opacity: 1;
+}
+
+.ft-selected {
   background: var(--surface-2);
   border-left: 3px solid var(--accent);
 }
 
-.ksy-list li.empty {
+.ft-toggle {
+  display: inline-block;
+  width: 14px;
+  flex-shrink: 0;
   color: var(--text-muted);
-  font-style: italic;
-  cursor: default;
+  font-size: 11px;
 }
 
-.ksy-name {
+.ft-icon {
+  display: inline-block;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.ft-folder-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ft-file-name {
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.btn-remove {
+.ft-delete {
+  margin-left: auto;
+  opacity: 0;
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 18px;
+  font-size: 16px;
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
+  transition: opacity 0.1s;
 }
 
-.btn-remove:hover {
+.ft-delete:hover {
   color: var(--error);
+}
+
+.ft-empty {
+  padding: 12px 16px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.ft-new-folder {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ft-new-folder-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  outline: none;
+}
+
+.ft-new-folder-input:focus {
+  border-color: var(--accent);
 }
 
 /* Editor panel */
