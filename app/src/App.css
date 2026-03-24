@@ -123,6 +123,29 @@ header h1 {
   color: var(--error);
 }
 
+/* Editor panel */
+.editor-panel {
+  flex: 1;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.ksy-editor {
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* Main content */
 main {
   flex: 1;

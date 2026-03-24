@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import HexInput from "./HexInput.tsx";
+import KsyEditor from "./KsyEditor.tsx";
 import { hexToArrayBuffer } from "./lib/hex.ts";
 import type { ParseResult } from "./lib/kaitai.ts";
 import { compileAndParse } from "./lib/kaitai.ts";
@@ -49,6 +50,18 @@ function App() {
       if (selectedKsy === name) {
         setSelectedKsy(updated[0]?.name ?? "");
       }
+    },
+    [selectedKsy]
+  );
+
+  const selectedKsyContent =
+    ksyFiles.find((f) => f.name === selectedKsy)?.content ?? "";
+
+  const handleKsyContentChange = useCallback(
+    (content: string) => {
+      if (!selectedKsy) return;
+      const updated = addKsyFile({ name: selectedKsy, content });
+      setKsyFiles(updated);
     },
     [selectedKsy]
   );
@@ -139,6 +152,19 @@ function App() {
             ))}
           </ul>
         </aside>
+
+        <section className="editor-panel">
+          {selectedKsy ? (
+            <KsyEditor
+              value={selectedKsyContent}
+              onChange={handleKsyContentChange}
+            />
+          ) : (
+            <div className="editor-placeholder">
+              Select or add a .ksy file to edit
+            </div>
+          )}
+        </section>
 
         <main>
           <section className="input-section">

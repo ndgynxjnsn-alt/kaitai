@@ -19,8 +19,8 @@
                 },
                 "background": {
                     "activeOnStart": true,
-                    "beginsPattern": "vite",
-                    "endsPattern": "ready in"
+                    "beginsPattern": "VITE",
+                    "endsPattern": "Local:"
                 }
             }
         }
