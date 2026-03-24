@@ -1,22 +1,31 @@
 import { useState, useCallback, useRef } from "react";
-import { useFsStore, buildTree } from "./lib/fsStore.ts";
+import { useFsStore, buildTree, isKsyFile } from "./lib/fsStore.ts";
 import type { FsNode } from "./lib/fsStore.ts";
+import NewBinaryModal from "./NewBinaryModal.tsx";
 
 function FileTreeNode({ node, depth }: { node: FsNode; depth: number }) {
   const [open, setOpen] = useState(depth < 1);
   const openFile = useFsStore((s) => s.openFile);
+  const selectedBinary = useFsStore((s) => s.selectedBinary);
   const setOpenFile = useFsStore((s) => s.setOpenFile);
+  const setSelectedBinary = useFsStore((s) => s.setSelectedBinary);
   const deleteEntry = useFsStore((s) => s.deleteEntry);
 
-  const isSelected = !node.isFolder && openFile === node.path;
+  const isKsy = !node.isFolder && isKsyFile(node.path);
+  const isBin = !node.isFolder && !isKsy;
+  const isSelected =
+    (!node.isFolder && isKsy && openFile === node.path) ||
+    (!node.isFolder && isBin && selectedBinary === node.path);
 
   const handleClick = useCallback(() => {
     if (node.isFolder) {
       setOpen((o) => !o);
-    } else {
+    } else if (isKsyFile(node.path)) {
       setOpenFile(node.path);
+    } else {
+      setSelectedBinary(node.path);
     }
-  }, [node, setOpenFile]);
+  }, [node, setOpenFile, setSelectedBinary]);
 
   const handleDelete = useCallback(
     (e: React.MouseEvent) => {
@@ -40,6 +49,7 @@ function FileTreeNode({ node, depth }: { node: FsNode; depth: number }) {
         <span className={node.isFolder ? "ft-folder-name" : "ft-file-name"}>
           {node.name}
         </span>
+        {isBin && <span className="ft-badge">BIN</span>}
         <button
           className="btn-remove ft-delete"
           onClick={handleDelete}
@@ -64,17 +74,19 @@ export default function FileTree() {
   const writeFile = useFsStore((s) => s.writeFile);
   const createFolder = useFsStore((s) => s.createFolder);
   const setOpenFile = useFsStore((s) => s.setOpenFile);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const setSelectedBinary = useFsStore((s) => s.setSelectedBinary);
+  const ksyInputRef = useRef<HTMLInputElement>(null);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [showBinaryModal, setShowBinaryModal] = useState(false);
 
   const tree = buildTree(entries);
 
-  const handleUpload = useCallback(() => {
-    fileInputRef.current?.click();
+  const handleUploadKsy = useCallback(() => {
+    ksyInputRef.current?.click();
   }, []);
 
-  const handleFileChange = useCallback(
+  const handleKsyFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files) return;
@@ -91,6 +103,17 @@ export default function FileTree() {
       e.target.value = "";
     },
     [writeFile, setOpenFile]
+  );
+
+  const handleNewBinaryAccept = useCallback(
+    (name: string, hex: string) => {
+      const fileName = name.includes(".") ? name : name + ".bin";
+      const path = "/" + fileName;
+      writeFile(path, hex);
+      setSelectedBinary(path);
+      setShowBinaryModal(false);
+    },
+    [writeFile, setSelectedBinary]
   );
 
   const handleNewFolder = useCallback(() => {
@@ -121,16 +144,23 @@ export default function FileTree() {
           >
             + Folder
           </button>
-          <button className="btn btn-sm" onClick={handleUpload} title="Upload .ksy file">
-            + File
+          <button className="btn btn-sm" onClick={handleUploadKsy} title="Upload .ksy file">
+            + KSY
+          </button>
+          <button
+            className="btn btn-sm"
+            onClick={() => setShowBinaryModal(true)}
+            title="New binary file"
+          >
+            + Binary
           </button>
           <input
-            ref={fileInputRef}
+            ref={ksyInputRef}
             type="file"
             accept=".ksy,.yaml,.yml"
             multiple
             hidden
-            onChange={handleFileChange}
+            onChange={handleKsyFileChange}
           />
         </div>
       </div>
@@ -157,6 +187,13 @@ export default function FileTree() {
           <FileTreeNode key={node.path} node={node} depth={0} />
         ))}
       </ul>
+
+      {showBinaryModal && (
+        <NewBinaryModal
+          onAccept={handleNewBinaryAccept}
+          onCancel={() => setShowBinaryModal(false)}
+        />
+      )}
     </aside>
   );
 }

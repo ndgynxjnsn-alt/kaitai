@@ -179,6 +179,16 @@ header h1 {
   border-color: var(--accent);
 }
 
+.ft-badge {
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 /* Editor panel */
 .editor-panel {
   flex: 1;
@@ -459,4 +469,210 @@ main {
 .node-null {
   color: #569cd6;
   font-style: italic;
+}
+
+/* Hex viewer (read-only) */
+.hex-viewer {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 200px;
+  overflow: auto;
+  user-select: text;
+  cursor: text;
+}
+
+.hex-viewer-content {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.hex-empty {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 24px;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+}
+
+.label-detail {
+  font-weight: 400;
+  color: var(--text);
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  width: 520px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.modal-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.modal-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  outline: none;
+}
+
+.modal-input:focus {
+  border-color: var(--accent);
+}
+
+.modal-textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 12px;
+  border-radius: 4px;
+  min-height: 120px;
+  resize: vertical;
+  outline: none;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.modal-textarea:focus {
+  border-color: var(--accent);
+}
+
+.modal-wide {
+  width: 580px;
+}
+
+.modal-tabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.modal-tab {
+  flex: 1;
+  padding: 8px 16px;
+  background: var(--bg);
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.modal-tab:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.modal-tab:hover {
+  color: var(--text);
+}
+
+.modal-tab-active {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.modal-upload-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  border: 2px dashed var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.modal-upload-zone:hover {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.05);
+}
+
+.modal-upload-hint {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.modal-upload-done {
+  color: var(--success);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Drop overlay */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(15, 52, 96, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.drop-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  padding: 48px;
+  border: 3px dashed var(--accent);
+  border-radius: 16px;
+}
+
+.drop-overlay-hint {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
 }

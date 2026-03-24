@@ -12,10 +12,13 @@ import { persist } from "zustand/middleware";
  */
 
 export interface FsState {
-  /** path → content for files; path (ending "/") → null for empty folders */
+  /** path → content for files; path (ending "/") → null for empty folders.
+   *  Binary files store content as space-separated hex strings. */
   entries: Record<string, string | null>;
-  /** Currently open file path (null = nothing open) */
+  /** Currently open file path in the editor (null = nothing open) */
   openFile: string | null;
+  /** Currently selected binary file for parsing (null = none) */
+  selectedBinary: string | null;
 
   // File operations
   writeFile: (path: string, content: string) => void;
@@ -27,6 +30,7 @@ export interface FsState {
 
   // Editor state
   setOpenFile: (path: string | null) => void;
+  setSelectedBinary: (path: string | null) => void;
 }
 
 /** Ensure a path starts with "/" */
@@ -39,6 +43,7 @@ export const useFsStore = create<FsState>()(
     (set, get) => ({
       entries: {},
       openFile: null,
+      selectedBinary: null,
 
       writeFile(path, content) {
         path = normalizePath(path);
@@ -61,10 +66,13 @@ export const useFsStore = create<FsState>()(
           delete next[path];
         }
 
+        const { selectedBinary } = get();
         const updates: Partial<FsState> = { entries: next };
-        // If the open file was deleted, close it
         if (openFile && (openFile === path || openFile.startsWith(path))) {
           updates.openFile = null;
+        }
+        if (selectedBinary && (selectedBinary === path || selectedBinary.startsWith(path))) {
+          updates.selectedBinary = null;
         }
         set(updates);
       },
@@ -107,16 +115,26 @@ export const useFsStore = create<FsState>()(
       setOpenFile(path) {
         set({ openFile: path ? normalizePath(path) : null });
       },
+
+      setSelectedBinary(path) {
+        set({ selectedBinary: path ? normalizePath(path) : null });
+      },
     }),
     {
       name: "kaitai-fs",
       // Only persist entries and openFile, not actions
-      partialize: (s) => ({ entries: s.entries, openFile: s.openFile }),
+      partialize: (s) => ({ entries: s.entries, openFile: s.openFile, selectedBinary: s.selectedBinary }),
     }
   )
 );
 
 // ── Derived helpers (pure functions, not in store) ──
+
+const KSY_EXTENSIONS = [".ksy", ".yaml", ".yml"];
+
+export function isKsyFile(path: string): boolean {
+  return KSY_EXTENSIONS.some((ext) => path.toLowerCase().endsWith(ext));
+}
 
 export interface FsNode {
   name: string;
