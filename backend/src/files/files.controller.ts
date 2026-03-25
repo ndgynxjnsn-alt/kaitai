@@ -5,10 +5,13 @@ import {
   Delete,
   Param,
   Body,
+  Inject,
+  Optional,
   NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import { S3Service } from './s3.service';
+import { ParserRegistryService } from '../decode/parser-registry.service';
 
 interface FileEntry {
   path: string;
@@ -20,7 +23,11 @@ interface FileEntry {
 @ApiResponse({ status: 401, description: 'Invalid or missing API key (x-api-key header)' })
 @Controller('files')
 export class FilesController {
-  constructor(private readonly s3: S3Service) {}
+  constructor(
+    private readonly s3: S3Service,
+    @Optional() @Inject(ParserRegistryService)
+    private readonly registry?: ParserRegistryService,
+  ) {}
 
   @ApiOperation({ summary: 'List all file paths' })
   @Get()
@@ -48,6 +55,9 @@ export class FilesController {
   ): Promise<{ path: string }> {
     const filePath = '/' + path;
     await this.s3.put(filePath, content ?? '');
+    if (filePath.endsWith('.ksy') && this.registry) {
+      await this.registry.register(filePath, content ?? '');
+    }
     return { path: filePath };
   }
 
@@ -56,6 +66,9 @@ export class FilesController {
   async deleteFile(@Param('path') path: string): Promise<{ deleted: string }> {
     const filePath = '/' + path;
     await this.s3.delete(filePath);
+    if (filePath.endsWith('.ksy') && this.registry) {
+      this.registry.removeByPath(filePath);
+    }
     return { deleted: filePath };
   }
 }
