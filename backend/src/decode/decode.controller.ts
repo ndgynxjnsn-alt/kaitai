@@ -2,15 +2,17 @@ import {
   Controller,
   Post,
   Body,
+  HttpCode,
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse, ApiProperty } from '@nestjs/swagger';
 import { S3Service } from '../files/s3.service';
 import { ParserRegistryService, TreeNode } from './parser-registry.service';
 
-interface DecodeRequestDto {
-  file: string;
+class DecodeRequestDto {
+  @ApiProperty({ description: 'S3 file path to decode', example: '/test.bin' })
+  file!: string;
 }
 
 interface ParserResult {
@@ -37,6 +39,7 @@ export class DecodeController {
 
   @ApiOperation({ summary: 'Decode a binary file with all registered parsers' })
   @ApiResponse({ status: 200, description: 'Parse results from all registered parsers' })
+  @HttpCode(200)
   @Post()
   async decode(@Body() body: DecodeRequestDto): Promise<DecodeResponseDto> {
     const { file } = body;

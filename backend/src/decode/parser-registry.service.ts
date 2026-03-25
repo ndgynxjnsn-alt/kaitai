@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as yaml from 'js-yaml';
-import KaitaiStructCompiler = require('kaitai-struct-compiler');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const KaitaiStream: new (buf: ArrayBuffer, off: number) => any = require('kaitai-struct/KaitaiStream');
+import KaitaiStructCompiler from 'kaitai-struct-compiler';
+import KaitaiStream from 'kaitai-struct/KaitaiStream';
 
 export interface CompiledParser {
   id: string;
