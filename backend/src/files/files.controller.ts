@@ -7,6 +7,7 @@ import {
   Body,
   NotFoundException,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import { S3Service } from './s3.service';
 
 interface FileEntry {
@@ -14,18 +15,21 @@ interface FileEntry {
   content: string | null;
 }
 
+@ApiTags('files')
+@ApiSecurity('api-key')
+@ApiResponse({ status: 401, description: 'Invalid or missing API key (x-api-key header)' })
 @Controller('files')
 export class FilesController {
   constructor(private readonly s3: S3Service) {}
 
-  /** GET /files — list all file paths */
+  @ApiOperation({ summary: 'List all file paths' })
   @Get()
   async list(): Promise<{ files: string[] }> {
     const files = await this.s3.list();
     return { files };
   }
 
-  /** GET /files/* — get a single file's content */
+  @ApiOperation({ summary: 'Get a single file by path' })
   @Get('*path')
   async getFile(@Param('path') path: string): Promise<FileEntry> {
     const filePath = '/' + path;
@@ -36,7 +40,7 @@ export class FilesController {
     return { path: filePath, content };
   }
 
-  /** PUT /files/* — create or overwrite a file */
+  @ApiOperation({ summary: 'Create or overwrite a file' })
   @Put('*path')
   async putFile(
     @Param('path') path: string,
@@ -47,7 +51,7 @@ export class FilesController {
     return { path: filePath };
   }
 
-  /** DELETE /files/* — delete a file */
+  @ApiOperation({ summary: 'Delete a file' })
   @Delete('*path')
   async deleteFile(@Param('path') path: string): Promise<{ deleted: string }> {
     const filePath = '/' + path;

@@ -2,6 +2,9 @@ import axios from "axios";
 
 export const api = axios.create({
   baseURL: "/api",
+  headers: {
+    "x-api-key": "kaitai-dev-key",
+  },
 });
 
 /** List all file paths on the server. */
