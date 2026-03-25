@@ -12,6 +12,15 @@ export default defineConfig({
       'iconv-lite': path.resolve(__dirname, 'src/stubs/iconv-lite.ts'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
   build: {
     chunkSizeWarningLimit: 4000, // kaitai-struct-compiler is large (~3.6MB)
   },

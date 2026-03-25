@@ -23,6 +23,34 @@
                     "endsPattern": "Local:"
                 }
             }
+        },
+        {
+            "label": "backend dev",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "dev"],
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^.*$",
+                    "file": 1,
+                    "location": 2,
+                    "message": 3
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "Starting Nest application",
+                    "endsPattern": "successfully started"
+                }
+            }
+        },
+        {
+            "label": "start all",
+            "dependsOn": ["vite dev", "backend dev"],
+            "problemMatcher": []
         }
-    ]
+    ],
 }

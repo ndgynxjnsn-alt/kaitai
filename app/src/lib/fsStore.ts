@@ -1,132 +1,137 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import * as remote from "./api.ts";
 
 /**
- * Flat path-based filesystem persisted in localStorage.
+ * Flat path-based filesystem backed by the REST API.
  *
- * Paths use "/" separators. Folders end with "/", files don't.
- * Root is "/". Example: "/protocols/simple.ksy", "/protocols/"
- *
- * Only file content is stored (as strings). Folders are implicit
- * from file paths, but can also be created empty.
+ * Paths use "/" separators. Files don't end with "/".
+ * The backend (S3) is the source of truth.
+ * Content is fetched lazily when a file is opened/selected.
  */
 
 export interface FsState {
-  /** path → content for files; path (ending "/") → null for empty folders.
-   *  Binary files store content as space-separated hex strings. */
+  /** path → content for files whose content has been fetched.
+   *  A path present with null means "known to exist but not yet fetched". */
   entries: Record<string, string | null>;
   /** Currently open file path in the editor (null = nothing open) */
   openFile: string | null;
   /** Currently selected binary file for parsing (null = none) */
   selectedBinary: string | null;
+  /** True while the initial file list is loading */
+  loading: boolean;
 
-  // File operations
-  writeFile: (path: string, content: string) => void;
-  deleteEntry: (path: string) => void;
-  renameEntry: (oldPath: string, newPath: string) => void;
+  // Remote-backed operations (all async)
+  fetchFileList: () => Promise<void>;
+  fetchFileContent: (path: string) => Promise<string | null>;
+  writeFile: (path: string, content: string) => Promise<void>;
+  deleteEntry: (path: string) => Promise<void>;
 
-  // Folder operations
-  createFolder: (path: string) => void;
-
-  // Editor state
+  // Local-only editor state
   setOpenFile: (path: string | null) => void;
   setSelectedBinary: (path: string | null) => void;
+
+  /** Update content locally without writing to server (e.g. editor typing). */
+  setLocalContent: (path: string, content: string) => void;
+  /** Flush a file's local content to the server. */
+  saveFile: (path: string) => Promise<void>;
 }
 
-/** Ensure a path starts with "/" */
 function normalizePath(p: string): string {
   return p.startsWith("/") ? p : "/" + p;
 }
 
-export const useFsStore = create<FsState>()(
-  persist(
-    (set, get) => ({
-      entries: {},
-      openFile: null,
-      selectedBinary: null,
+export const useFsStore = create<FsState>()((set, get) => ({
+  entries: {},
+  openFile: null,
+  selectedBinary: null,
+  loading: true,
 
-      writeFile(path, content) {
-        path = normalizePath(path);
-        set((s) => ({ entries: { ...s.entries, [path]: content } }));
-      },
-
-      deleteEntry(path) {
-        path = normalizePath(path);
-        const { entries, openFile } = get();
-        const next = { ...entries };
-
-        if (path.endsWith("/")) {
-          // Delete folder and everything inside it
-          for (const key of Object.keys(next)) {
-            if (key === path || key.startsWith(path)) {
-              delete next[key];
-            }
-          }
-        } else {
-          delete next[path];
-        }
-
-        const { selectedBinary } = get();
-        const updates: Partial<FsState> = { entries: next };
-        if (openFile && (openFile === path || openFile.startsWith(path))) {
-          updates.openFile = null;
-        }
-        if (selectedBinary && (selectedBinary === path || selectedBinary.startsWith(path))) {
-          updates.selectedBinary = null;
-        }
-        set(updates);
-      },
-
-      renameEntry(oldPath, newPath) {
-        oldPath = normalizePath(oldPath);
-        newPath = normalizePath(newPath);
-        const { entries, openFile } = get();
-        const next = { ...entries };
-
-        if (oldPath.endsWith("/")) {
-          // Rename folder: move all children
-          for (const key of Object.keys(next)) {
-            if (key === oldPath || key.startsWith(oldPath)) {
-              const suffix = key.slice(oldPath.length);
-              next[newPath + suffix] = next[key];
-              delete next[key];
-            }
-          }
-        } else {
-          next[newPath] = next[oldPath];
-          delete next[oldPath];
-        }
-
-        const updates: Partial<FsState> = { entries: next };
-        if (openFile === oldPath) {
-          updates.openFile = oldPath.endsWith("/") ? null : newPath;
-        } else if (openFile && openFile.startsWith(oldPath)) {
-          updates.openFile = newPath + openFile.slice(oldPath.length);
-        }
-        set(updates);
-      },
-
-      createFolder(path) {
-        path = normalizePath(path);
-        if (!path.endsWith("/")) path += "/";
-        set((s) => ({ entries: { ...s.entries, [path]: null } }));
-      },
-
-      setOpenFile(path) {
-        set({ openFile: path ? normalizePath(path) : null });
-      },
-
-      setSelectedBinary(path) {
-        set({ selectedBinary: path ? normalizePath(path) : null });
-      },
-    }),
-    {
-      name: "kaitai-fs",
-      // Only persist entries and openFile, not actions
-      partialize: (s) => ({ entries: s.entries, openFile: s.openFile, selectedBinary: s.selectedBinary }),
+  async fetchFileList() {
+    set({ loading: true });
+    try {
+      const files = await remote.listFiles();
+      const entries: Record<string, string | null> = {};
+      for (const f of files) {
+        entries[f] = get().entries[f] ?? null; // preserve already-fetched content
+      }
+      set({ entries, loading: false });
+    } catch (err) {
+      console.error("Failed to fetch file list:", err);
+      set({ loading: false });
     }
-  )
-);
+  },
+
+  async fetchFileContent(path: string) {
+    path = normalizePath(path);
+    const content = await remote.getFile(path);
+    if (content !== null) {
+      set((s) => ({ entries: { ...s.entries, [path]: content } }));
+    }
+    return content;
+  },
+
+  async writeFile(path: string, content: string) {
+    path = normalizePath(path);
+    await remote.putFile(path, content);
+    set((s) => ({ entries: { ...s.entries, [path]: content } }));
+  },
+
+  async deleteEntry(path: string) {
+    path = normalizePath(path);
+    // If it looks like a folder prefix, delete all children
+    if (path.endsWith("/")) {
+      const { entries } = get();
+      const toDelete = Object.keys(entries).filter(
+        (k) => k === path || k.startsWith(path)
+      );
+      await Promise.all(toDelete.map((k) => remote.deleteFile(k)));
+      const next = { ...entries };
+      for (const k of toDelete) delete next[k];
+      const updates: Partial<FsState> = { entries: next };
+      const { openFile, selectedBinary } = get();
+      if (openFile && (openFile === path || openFile.startsWith(path))) {
+        updates.openFile = null;
+      }
+      if (
+        selectedBinary &&
+        (selectedBinary === path || selectedBinary.startsWith(path))
+      ) {
+        updates.selectedBinary = null;
+      }
+      set(updates);
+    } else {
+      await remote.deleteFile(path);
+      const { entries, openFile, selectedBinary } = get();
+      const next = { ...entries };
+      delete next[path];
+      const updates: Partial<FsState> = { entries: next };
+      if (openFile === path) updates.openFile = null;
+      if (selectedBinary === path) updates.selectedBinary = null;
+      set(updates);
+    }
+  },
+
+  setOpenFile(path) {
+    set({ openFile: path ? normalizePath(path) : null });
+  },
+
+  setSelectedBinary(path) {
+    set({ selectedBinary: path ? normalizePath(path) : null });
+  },
+
+  setLocalContent(path: string, content: string) {
+    path = normalizePath(path);
+    set((s) => ({ entries: { ...s.entries, [path]: content } }));
+  },
+
+  async saveFile(path: string) {
+    path = normalizePath(path);
+    const content = get().entries[path];
+    if (content != null) {
+      await remote.putFile(path, content);
+    }
+  },
+}));
 
 // ── Derived helpers (pure functions, not in store) ──
 

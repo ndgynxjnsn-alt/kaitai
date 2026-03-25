@@ -14,11 +14,33 @@ function App() {
   const openFile = useFsStore((s) => s.openFile);
   const selectedBinary = useFsStore((s) => s.selectedBinary);
   const writeFile = useFsStore((s) => s.writeFile);
+  const setLocalContent = useFsStore((s) => s.setLocalContent);
+  const saveFile = useFsStore((s) => s.saveFile);
   const setOpenFile = useFsStore((s) => s.setOpenFile);
   const setSelectedBinary = useFsStore((s) => s.setSelectedBinary);
+  const fetchFileList = useFsStore((s) => s.fetchFileList);
+  const fetchFileContent = useFsStore((s) => s.fetchFileContent);
 
   const [dragging, setDragging] = useState(false);
   const dragCounter = useRef(0);
+
+  // Bootstrap: load file list from server
+  useEffect(() => {
+    fetchFileList();
+  }, [fetchFileList]);
+
+  // When openFile or selectedBinary changes, ensure content is fetched
+  useEffect(() => {
+    if (openFile && entries[openFile] === null) {
+      fetchFileContent(openFile);
+    }
+  }, [openFile, entries, fetchFileContent]);
+
+  useEffect(() => {
+    if (selectedBinary && entries[selectedBinary] === null) {
+      fetchFileContent(selectedBinary);
+    }
+  }, [selectedBinary, entries, fetchFileContent]);
 
   const openFileContent =
     openFile && isKsyFile(openFile) ? (entries[openFile] ?? "") : "";
@@ -26,11 +48,15 @@ function App() {
 
   const [result, setResult] = useState<ParseResult | null>(null);
 
+  // Save KSY content to server on change (debounced by editor)
   const handleEditorChange = useCallback(
     (content: string) => {
-      if (openFile) writeFile(openFile, content);
+      if (openFile) {
+        setLocalContent(openFile, content);
+        saveFile(openFile);
+      }
     },
-    [openFile, writeFile]
+    [openFile, setLocalContent, saveFile]
   );
 
   const handleParse = useCallback(async () => {

@@ -13,7 +13,8 @@
             "webRoot": "${workspaceFolder}/app",
             "skipFiles": ["<node_internals>/**"],
             "firefoxArgs": ["-profile", "/home/knallfrosch/snap/firefox/common/.mozilla/firefox/eborkysg.develop"],
-            "preLaunchTask": "vite dev"
+            "preLaunchTask": "start all",
+            "tmpDir": "${workspaceFolder}/.vscode/firefox-debug"
         }
     ]
 }

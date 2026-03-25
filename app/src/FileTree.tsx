@@ -71,13 +71,11 @@ function FileTreeNode({ node, depth }: { node: FsNode; depth: number }) {
 
 export default function FileTree() {
   const entries = useFsStore((s) => s.entries);
+  const loading = useFsStore((s) => s.loading);
   const writeFile = useFsStore((s) => s.writeFile);
-  const createFolder = useFsStore((s) => s.createFolder);
   const setOpenFile = useFsStore((s) => s.setOpenFile);
   const setSelectedBinary = useFsStore((s) => s.setSelectedBinary);
   const ksyInputRef = useRef<HTMLInputElement>(null);
-  const [showNewFolder, setShowNewFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
   const [showBinaryModal, setShowBinaryModal] = useState(false);
 
   const tree = buildTree(entries);
@@ -116,34 +114,11 @@ export default function FileTree() {
     [writeFile, setSelectedBinary]
   );
 
-  const handleNewFolder = useCallback(() => {
-    const name = newFolderName.trim();
-    if (!name) return;
-    createFolder("/" + name + "/");
-    setNewFolderName("");
-    setShowNewFolder(false);
-  }, [newFolderName, createFolder]);
-
-  const handleFolderKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") handleNewFolder();
-      if (e.key === "Escape") setShowNewFolder(false);
-    },
-    [handleNewFolder]
-  );
-
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
         <h2>Files</h2>
         <div className="sidebar-actions">
-          <button
-            className="btn btn-sm"
-            onClick={() => setShowNewFolder(true)}
-            title="New folder"
-          >
-            + Folder
-          </button>
           <button className="btn btn-sm" onClick={handleUploadKsy} title="Upload .ksy file">
             + KSY
           </button>
@@ -165,22 +140,11 @@ export default function FileTree() {
         </div>
       </div>
 
-      {showNewFolder && (
-        <div className="ft-new-folder">
-          <input
-            autoFocus
-            className="ft-new-folder-input"
-            placeholder="Folder name"
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            onKeyDown={handleFolderKeyDown}
-            onBlur={() => setShowNewFolder(false)}
-          />
-        </div>
-      )}
-
       <ul className="ft-root">
-        {tree.length === 0 && (
+        {loading && (
+          <li className="ft-empty">Loading...</li>
+        )}
+        {!loading && tree.length === 0 && (
           <li className="ft-empty">No files yet</li>
         )}
         {tree.map((node) => (
