@@ -11,16 +11,18 @@ function rangesOverlap(
 }
 
 function TreeNodeRow({ node, depth }: { node: TreeNode; depth: number }) {
-  const [open, setOpen] = useState(depth < 2);
+  const [open, setOpen] = useState(true);
   const hasChildren = !!node.children?.length;
   const setHoveredRange = useHighlightStore((s) => s.setHoveredRange);
+  const setSelectedRange = useHighlightStore((s) => s.setSelectedRange);
   const selectedRange = useHighlightStore((s) => s.selectedRange);
 
   const isHighlighted = rangesOverlap(node.range, selectedRange);
 
-  const toggle = useCallback(() => {
+  const handleClick = useCallback(() => {
     if (hasChildren) setOpen((o) => !o);
-  }, [hasChildren]);
+    if (node.range) setSelectedRange(node.range);
+  }, [hasChildren, node.range, setSelectedRange]);
 
   const handleMouseEnter = useCallback(() => {
     if (node.range) setHoveredRange(node.range);
@@ -35,7 +37,7 @@ function TreeNodeRow({ node, depth }: { node: TreeNode; depth: number }) {
       <div
         className={`tree-row ${hasChildren ? "expandable" : ""} ${isHighlighted ? "tree-row-highlighted" : ""}`}
         style={{ paddingLeft: depth * 16 + 4 }}
-        onClick={toggle}
+        onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >

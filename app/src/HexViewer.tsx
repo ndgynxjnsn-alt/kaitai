@@ -29,6 +29,7 @@ function isInRange(byteIdx: number, range: ByteRange | null): boolean {
 
 export default function HexViewer({ hex }: { hex: string }) {
   const hoveredRange = useHighlightStore((s) => s.hoveredRange);
+  const selectedRange = useHighlightStore((s) => s.selectedRange);
   const setSelectedRange = useHighlightStore((s) => s.setSelectedRange);
 
   const bytes = useMemo(() => parseHexBytes(hex), [hex]);
@@ -97,7 +98,7 @@ export default function HexViewer({ hex }: { hex: string }) {
               <span className="hv-hex">
                 {row.map((b, col) => {
                   const byteIdx = rowOffset + col;
-                  const highlighted = isInRange(byteIdx, hoveredRange);
+                  const highlighted = isInRange(byteIdx, hoveredRange) || isInRange(byteIdx, selectedRange);
                   const cls =
                     "hv-cell" +
                     (col === 8 ? " hv-col-gap" : "") +
